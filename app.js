@@ -275,7 +275,6 @@ const el = {
   geo: document.querySelector("#geo-button"),
   searchResults: document.querySelector("#search-results"),
   cityTabs: document.querySelector("#city-tabs"),
-  featuredOverview: document.querySelector("#featured-overview"),
   langSwitch: document.querySelector("#lang-switch"),
   current: document.querySelector("#current-weather"),
   details: document.querySelector("#weather-details"),
@@ -297,16 +296,13 @@ boot();
 
 async function boot() {
   renderStaticText();
-  renderFeaturedOverviewLoading();
+  renderCityTabs();
 
   el.form.addEventListener("submit", onSearch);
   el.geo.addEventListener("click", onGeo);
   el.cityTabs.addEventListener("click", onFeaturedClick);
   el.searchResults.addEventListener("click", onSearchResultClick);
   el.langSwitch.addEventListener("click", onLanguageClick);
-  el.featuredOverview.addEventListener("click", onFeaturedClick);
-
-  activateCityControls();
 
   void loadFeaturedOverview();
   await loadWeather(state.activeLocation);
@@ -412,8 +408,7 @@ function onLanguageClick(event) {
 
   renderStaticText();
   renderResults();
-  renderFeaturedOverview();
-  activateCityControls();
+  renderCityTabs();
 
   if (state.weather) {
     renderWeatherPanels();
@@ -425,7 +420,7 @@ async function loadWeather(location) {
   const normalized = normalizeLocation(location);
   state.activeLocation = normalized;
   persistLocation(normalized);
-  activateCityControls();
+  renderCityTabs();
 
   setStatus(interpolate(t("status.loadingWeather"), { city: locationLabel(normalized) }));
 
@@ -458,7 +453,7 @@ async function loadFeaturedOverview() {
     state.featuredWeather = new Map();
   }
 
-  renderFeaturedOverview();
+  renderCityTabs();
 }
 
 function renderStaticText() {
@@ -473,11 +468,6 @@ function renderStaticText() {
 
   document.querySelectorAll("[data-i18n-placeholder]").forEach((node) => {
     node.setAttribute("placeholder", t(node.dataset.i18nPlaceholder));
-  });
-
-  document.querySelectorAll("[data-feature-meta]").forEach((node) => {
-    const city = FEATURED_CITIES.find((item) => item.id === node.dataset.featureMeta);
-    if (city) node.textContent = t(city.metaKey);
   });
 
   document.querySelectorAll("[data-lang]").forEach((node) => {
@@ -505,27 +495,18 @@ function renderResults() {
     .join("");
 }
 
-function renderFeaturedOverviewLoading() {
-  el.featuredOverview.innerHTML = `
-    <div class="empty-state">${esc(t("featured.loading"))}</div>
-  `;
-}
-
-function renderFeaturedOverview() {
-  el.featuredOverview.innerHTML = FEATURED_CITIES
+function renderCityTabs() {
+  el.cityTabs.innerHTML = FEATURED_CITIES
     .map((city) => {
       const summary = state.featuredWeather.get(city.id);
       const isActive = state.activeLocation?.id === city.id;
-      const meta = summary
-        ? weatherMeta(summary.current.weather_code, summary.current.is_day === 1)
-        : null;
+      const temp = summary ? `${Math.round(summary.current.temperature_2m)}°` : "—";
 
       return `
-        <button class="featured-city ${isActive ? "is-active" : ""}" type="button" data-city="${city.id}">
-          <span class="featured-city__name">${esc(city.name)}</span>
-          <span class="featured-city__meta">${esc(t(city.metaKey))}</span>
-          <span class="featured-city__temp">${summary ? `${Math.round(summary.current.temperature_2m)}°C` : "—"}</span>
-          <span class="featured-city__desc">${summary ? esc(meta.label) : esc(t("featured.unavailable"))}</span>
+        <button class="city-tab${isActive ? " is-active" : ""}" type="button" data-city="${city.id}">
+          <span class="city-tab__name">${esc(city.name)}</span>
+          <span class="city-tab__meta">${esc(t(city.metaKey))}</span>
+          <span class="city-tab__temp">${temp}</span>
         </button>
       `;
     })
@@ -676,12 +657,6 @@ function renderDaily() {
       `;
     })
     .join("");
-}
-
-function activateCityControls() {
-  document.querySelectorAll("[data-city]").forEach((node) => {
-    node.classList.toggle("is-active", node.dataset.city === state.activeLocation?.id);
-  });
 }
 
 async function searchCities(query) {
